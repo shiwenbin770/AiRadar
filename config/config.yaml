@@ -41,7 +41,7 @@ app:
 # ===============================================================
 schedule:
   enabled: true                         # 是否启用调度系统
-  preset: "morning_evening"             # 预设模板名称（见上方说明）
+  preset: "daily_once"                # 预设模板名称（见上方说明）
 
 
 # ===============================================================
@@ -151,7 +151,7 @@ rss:
 # - incremental：最少打扰，只看新增
 # ===============================================================
 report:
-  mode: "current"                     # daily | current | incremental（schedule 开启时作为默认值）
+  mode: "daily"                     # daily | current | incremental（schedule 开启时作为默认值）
 
   display_mode: "keyword"             # 分组维度: keyword | platform
                                       # keyword: 按关键词分组显示（默认）
