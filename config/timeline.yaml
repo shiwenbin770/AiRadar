@@ -487,6 +487,11 @@ custom:
 
     weekend_frees:
       name: "周末休息"
+      start: "00:00"
+      end: "23:59"
+      push: false
+      collect: false
+      analyze: false
       # once 继承 default（push: true）→ 窗口内只推一次
       
   # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
