@@ -394,7 +394,7 @@ presets:
 #     晚间汇总 19:00-21:00：推送 ✓ | 分析 ✓ | daily
 #     其余时间走默认配置（静默采集）
 
-daily_once:
+custom:
   name: "一天一次"
   description: "仅工作日每天推送一次"
 
@@ -473,8 +473,8 @@ daily_once:
       # once 继承 default（push: true）→ 窗口内只推一次
 
     weekday_afternoon:
-      name: "工作日早间"
-      start: "14:00"
+      name: "工作日下午"
+      start: "16:00"
       end: "18:00"                 # 跨度 2h，留足触发裕量
       # frequency_file: "xxx.txt"               # 关键词文件（可选，位于 config/custom/keyword/）
       # interests_file: "xxx.txt"                # AI 兴趣文件（可选，位于 config/custom/ai/）
@@ -484,7 +484,7 @@ daily_once:
       analyze: true
       ai_mode: "daily"
       report_mode: "daily"
-      
+
     weekend_frees:
       name: "周末休息"
       # once 继承 default（push: true）→ 窗口内只推一次
