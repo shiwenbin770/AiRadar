@@ -160,11 +160,11 @@ report:
   # 关键词模式分组排序方式（仅 keyword 模式生效）
   # true: 按 frequency_words.txt 的定义顺序排列
   # false: 按匹配到的热点条数排序（条数多的在前）
-  sort_by_position_first: false
+  sort_by_position_first: true
 
   rank_threshold: 5                   # 排名高亮阈值（影响展示强调，不改变抓取范围）
 
-  max_news_per_keyword: 0             # 每个关键词/标签最大显示数量（0=不限制，仅影响展示裁剪）
+  max_news_per_keyword: 5             # 每个关键词/标签最大显示数量（0=不限制，仅影响展示裁剪）
 
 
 # ===============================================================
