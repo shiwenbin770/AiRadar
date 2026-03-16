@@ -477,7 +477,7 @@ custom:
     weekday_afternoon:
       name: "工作日下午"
       start: "16:00"
-      end: "18:00"                 # 跨度 2h，留足触发裕量
+      end: "18:30"                 # 跨度 2h，留足触发裕量
       # frequency_file: "xxx.txt"               # 关键词文件（可选，位于 config/custom/keyword/）
       # interests_file: "xxx.txt"                # AI 兴趣文件（可选，位于 config/custom/ai/）
       # filter_method: "keyword"                # 筛选策略（可选: keyword | ai，不填用全局 filter.method）
@@ -486,6 +486,9 @@ custom:
       analyze: true
       ai_mode: "daily"
       report_mode: "daily"
+      once:
+        analyze: true                # 该时间段内只分析一次（省 API）
+        push: true                   # 该时间段内只推送一次（省打扰）
 
     weekend_frees:
       name: "周末休息"
@@ -505,7 +508,7 @@ custom:
   # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   day_plans:
     workday:                       # 工作日计划
-      periods: ["weekday_morning"]
+      periods: ["weekday_afternoon"]
     weekend:                       # 周末计划（用 weekend_morning 替换 weekday_morning）
       periods: ["weekend_frees"]
 
