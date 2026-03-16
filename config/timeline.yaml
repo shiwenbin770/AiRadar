@@ -477,7 +477,7 @@ custom:
     weekday_afternoon:
       name: "工作日下午"
       start: "16:00"
-      end: "18:30"                 # 跨度 2h，留足触发裕量
+      end: "19:30"                 # 跨度 2h，留足触发裕量
       # frequency_file: "xxx.txt"               # 关键词文件（可选，位于 config/custom/keyword/）
       # interests_file: "xxx.txt"                # AI 兴趣文件（可选，位于 config/custom/ai/）
       # filter_method: "keyword"                # 筛选策略（可选: keyword | ai，不填用全局 filter.method）
