@@ -96,7 +96,21 @@ class SQLiteStorageMixin:
                 with open(ai_filter_schema, "r", encoding="utf-8") as f:
                     conn.executescript(f.read())
 
+        if db_type == "rss":
+            self._migrate_rss_schema(conn)
+
         conn.commit()
+
+    def _migrate_rss_schema(self, conn: sqlite3.Connection) -> None:
+        """迁移 rss_items 表结构（为已有数据库添加 guid 列）"""
+        cursor = conn.execute("PRAGMA table_info(rss_items)")
+        columns = {row[1] for row in cursor.fetchall()}
+        if "guid" not in columns:
+            conn.execute("ALTER TABLE rss_items ADD COLUMN guid TEXT DEFAULT ''")
+            conn.execute("""
+                CREATE UNIQUE INDEX IF NOT EXISTS idx_rss_guid_feed
+                ON rss_items(guid, feed_id) WHERE guid != ''
+            """)
 
     # ========================================
     # 新闻数据存储
@@ -156,14 +170,19 @@ class SQLiteStorageMixin:
                                 # 已存在，更新记录
                                 existing_id, existing_title = existing
 
+                                update_title = item.title
+                                if (update_title and update_title.strip().startswith(("http://", "https://", "//"))
+                                        and existing_title and not existing_title.strip().startswith(("http://", "https://", "//"))):
+                                    update_title = existing_title
+
                                 # 检查标题是否变化
-                                if existing_title != item.title:
+                                if existing_title != update_title:
                                     # 记录标题变更
                                     cursor.execute("""
                                         INSERT INTO title_changes
                                         (news_item_id, old_title, new_title, changed_at)
                                         VALUES (?, ?, ?, ?)
-                                    """, (existing_id, existing_title, item.title, now_str))
+                                    """, (existing_id, existing_title, update_title, now_str))
                                     title_changed_count += 1
 
                                 # 记录排名历史
@@ -183,7 +202,7 @@ class SQLiteStorageMixin:
                                         crawl_count = crawl_count + 1,
                                         updated_at = ?
                                     WHERE id = ?
-                                """, (item.title, item.rank, item.mobile_url,
+                                """, (update_title, item.rank, item.mobile_url,
                                       data.crawl_time, now_str, existing_id))
                                 updated_count += 1
                             else:
@@ -818,65 +837,62 @@ class SQLiteStorageMixin:
             for feed_id, rss_list in data.items.items():
                 for item in rss_list:
                     try:
-                        # 检查是否已存在（通过 URL + feed_id）
-                        if item.url:
+                        item_guid = getattr(item, "guid", "") or ""
+                        existing = None
+
+                        # 去重优先级：guid > url
+                        if item_guid:
+                            cursor.execute("""
+                                SELECT id, title FROM rss_items
+                                WHERE guid = ? AND feed_id = ?
+                            """, (item_guid, feed_id))
+                            existing = cursor.fetchone()
+
+                        if not existing and item.url:
                             cursor.execute("""
                                 SELECT id, title FROM rss_items
                                 WHERE url = ? AND feed_id = ?
                             """, (item.url, feed_id))
                             existing = cursor.fetchone()
 
-                            if existing:
-                                # 已存在，更新记录
-                                existing_id = existing[0]
-                                cursor.execute("""
-                                    UPDATE rss_items SET
-                                        title = ?,
-                                        published_at = ?,
-                                        summary = ?,
-                                        author = ?,
-                                        last_crawl_time = ?,
-                                        crawl_count = crawl_count + 1,
-                                        updated_at = ?
-                                    WHERE id = ?
-                                """, (item.title, item.published_at, item.summary,
-                                      item.author, data.crawl_time, now_str, existing_id))
-                                updated_count += 1
-                            else:
-                                # 不存在，插入新记录（使用 ON CONFLICT 兜底处理并发/竞争场景）
-                                cursor.execute("""
-                                    INSERT INTO rss_items
-                                    (title, feed_id, url, published_at, summary, author,
-                                     first_crawl_time, last_crawl_time, crawl_count,
-                                     created_at, updated_at)
-                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
-                                    ON CONFLICT(url, feed_id) DO UPDATE SET
-                                        title = excluded.title,
-                                        published_at = excluded.published_at,
-                                        summary = excluded.summary,
-                                        author = excluded.author,
-                                        last_crawl_time = excluded.last_crawl_time,
-                                        crawl_count = crawl_count + 1,
-                                        updated_at = excluded.updated_at
-                                """, (item.title, feed_id, item.url, item.published_at,
-                                      item.summary, item.author, data.crawl_time,
-                                      data.crawl_time, now_str, now_str))
-                                new_count += 1
-                        else:
-                            # URL 为空，用 try-except 处理重复
+                        if existing:
+                            existing_id = existing[0]
+                            existing_title = existing[1]
+                            update_title = item.title
+                            if (update_title and update_title.strip().startswith(("http://", "https://", "//"))
+                                    and existing_title and not existing_title.strip().startswith(("http://", "https://", "//"))):
+                                update_title = existing_title
+                            cursor.execute("""
+                                UPDATE rss_items SET
+                                    title = ?,
+                                    url = CASE WHEN ? != '' THEN ? ELSE url END,
+                                    guid = CASE WHEN ? != '' THEN ? ELSE guid END,
+                                    published_at = ?,
+                                    summary = ?,
+                                    author = ?,
+                                    last_crawl_time = ?,
+                                    crawl_count = crawl_count + 1,
+                                    updated_at = ?
+                                WHERE id = ?
+                            """, (update_title,
+                                  item.url, item.url,
+                                  item_guid, item_guid,
+                                  item.published_at, item.summary,
+                                  item.author, data.crawl_time, now_str, existing_id))
+                            updated_count += 1
+                        elif item.url or item_guid:
                             try:
                                 cursor.execute("""
                                     INSERT INTO rss_items
-                                    (title, feed_id, url, published_at, summary, author,
+                                    (title, feed_id, url, guid, published_at, summary, author,
                                      first_crawl_time, last_crawl_time, crawl_count,
                                      created_at, updated_at)
-                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
-                                """, (item.title, feed_id, "", item.published_at,
-                                      item.summary, item.author, data.crawl_time,
-                                      data.crawl_time, now_str, now_str))
+                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
+                                """, (item.title, feed_id, item.url, item_guid,
+                                      item.published_at, item.summary, item.author,
+                                      data.crawl_time, data.crawl_time, now_str, now_str))
                                 new_count += 1
                             except sqlite3.IntegrityError:
-                                # 重复的空 URL 条目，忽略
                                 pass
 
                     except sqlite3.Error as e:

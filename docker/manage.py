@@ -16,20 +16,6 @@ from datetime import datetime
 WEBSERVER_PORT = int(os.environ.get("WEBSERVER_PORT", "8080"))
 WEBSERVER_DIR = "/app/output"
 WEBSERVER_PID_FILE = "/tmp/webserver.pid"
-WEBSERVER_MANUAL_STOP_FILE = "/tmp/webserver.manual_stop"
-
-
-def _env_bool(name: str, default: bool) -> bool:
-    """读取布尔环境变量，兼容 true/1/yes/on。"""
-    value = os.environ.get(name)
-    if value is None:
-        return default
-    return value.strip().lower() in {"1", "true", "yes", "on"}
-
-
-WEBSERVER_AUTOFIX_LOG_HEALTHY = _env_bool("WEBSERVER_AUTOFIX_LOG_HEALTHY", False)
-
-
 def get_timestamp():
     """获取当前时间戳字符串"""
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -485,29 +471,6 @@ def _is_expected_webserver_process(pid: int) -> bool:
     return "http.server" in cmdline and str(WEBSERVER_PORT) in cmdline
 
 
-def _is_manual_stop_requested() -> bool:
-    """是否处于手动停服状态。"""
-    return Path(WEBSERVER_MANUAL_STOP_FILE).exists()
-
-
-def _set_manual_stop_marker():
-    """写入手动停服标记，防止 watchdog 自动拉起。"""
-    try:
-        with open(WEBSERVER_MANUAL_STOP_FILE, "w", encoding="utf-8") as f:
-            f.write(get_timestamp())
-    except Exception:
-        pass
-
-
-def _clear_manual_stop_marker():
-    """清理手动停服标记。"""
-    try:
-        if Path(WEBSERVER_MANUAL_STOP_FILE).exists():
-            os.remove(WEBSERVER_MANUAL_STOP_FILE)
-    except Exception:
-        pass
-
-
 def _terminate_webserver_process(pid: int, require_expected: bool = True) -> bool:
     """尝试终止 Web 服务器进程。
 
@@ -577,16 +540,10 @@ def _cleanup_stale_pid():
         return False
 
 
-def start_webserver(force: bool = False):
+def start_webserver():
     """启动 Web 服务器托管 output 目录"""
     print(f"🌐 启动 Web 服务器 (端口: {WEBSERVER_PORT})...")
     print(f"  🔒 安全提示：仅提供静态文件访问，限制在 {WEBSERVER_DIR} 目录")
-
-    if force:
-        _clear_manual_stop_marker()
-    elif _is_manual_stop_requested():
-        print("  ℹ️ 检测到手动停服标记，跳过自动启动")
-        return
 
     # 检查是否已经运行
     if Path(WEBSERVER_PID_FILE).exists():
@@ -635,8 +592,6 @@ def start_webserver(force: bool = False):
             # 保存 PID
             with open(WEBSERVER_PID_FILE, 'w') as f:
                 f.write(str(process.pid))
-            _clear_manual_stop_marker()
-
             print(f"  ✅ Web 服务器已启动 (PID: {process.pid})")
             print(f"  📁 服务目录: {WEBSERVER_DIR} (只读，仅静态文件)")
             print(f"  🌐 访问地址: http://localhost:{WEBSERVER_PORT}")
@@ -651,11 +606,9 @@ def start_webserver(force: bool = False):
 def stop_webserver():
     """停止 Web 服务器"""
     print("🛑 停止 Web 服务器...")
-    _set_manual_stop_marker()
 
     if not Path(WEBSERVER_PID_FILE).exists():
         print("  ℹ️ Web 服务器未运行")
-        print("  ℹ️ 已写入手动停服标记，watchdog 不会自动拉起")
         return
 
     try:
@@ -664,7 +617,6 @@ def stop_webserver():
         _terminate_webserver_process(pid, require_expected=True)
         if Path(WEBSERVER_PID_FILE).exists():
             os.remove(WEBSERVER_PID_FILE)
-        print("  ℹ️ 已写入手动停服标记，watchdog 不会自动拉起")
     except Exception as e:
         print(f"  ❌ 停止失败: {e}")
         # 尝试清理 PID 文件
@@ -680,8 +632,6 @@ def webserver_status():
 
     if not Path(WEBSERVER_PID_FILE).exists():
         print("  ⭕ 未运行")
-        if _is_manual_stop_requested():
-            print("  ℹ️ 当前为手动停服状态，watchdog 不会自动拉起")
         print(f"  💡 启动服务: python manage.py start_webserver")
         return
 
@@ -702,43 +652,6 @@ def webserver_status():
             print("  💡 启动服务: python manage.py start_webserver")
     except Exception as e:
         print(f"  ❌ 状态检查失败: {e}")
-
-
-def webserver_autofix():
-    """Web 服务器健康检查和自动修复
-
-    供 watchdog/定时任务调用，检查服务状态并在需要时自动重启。
-    输出日志格式便于外部监控系统解析。
-    """
-    if _is_manual_stop_requested():
-        if WEBSERVER_AUTOFIX_LOG_HEALTHY:
-            print(f"[{get_timestamp()}] ℹ️ 手动停服状态，跳过自动修复")
-        return
-
-    if not Path(WEBSERVER_PID_FILE).exists():
-        print(f"[{get_timestamp()}] ℹ️ Web 服务器未运行，启动中...")
-        start_webserver(force=False)
-        return
-
-    try:
-        with open(WEBSERVER_PID_FILE, 'r') as f:
-            pid = int(f.read().strip())
-
-        # 使用增强检查
-        if not _is_webserver_running(pid):
-            print(f"[{get_timestamp()}] ⚠️ Web 服务器不可用 (PID: {pid})，尝试重启...")
-            _terminate_webserver_process(pid, require_expected=True)
-            _cleanup_stale_pid()
-            start_webserver(force=False)
-            return
-
-        if WEBSERVER_AUTOFIX_LOG_HEALTHY:
-            print(f"[{get_timestamp()}] ✅ Web 服务器健康 (PID: {pid})")
-
-    except Exception as e:
-        print(f"[{get_timestamp()}] ❌ 健康检查异常: {e}")
-        _cleanup_stale_pid()
-        start_webserver(force=False)
 
 
 def show_help():
@@ -791,7 +704,7 @@ def show_help():
 
   5. Web 服务器管理:
      - 启动: start_webserver
-     - 停止: stop_webserver（写入手动停服标记，watchdog 不自动拉起）
+     - 停止: stop_webserver
      - 状态: webserver_status
      - 访问: http://localhost:8080
 """
@@ -811,10 +724,9 @@ def main():
         "files": show_files,
         "logs": show_logs,
         "restart": restart_supercronic,
-        "start_webserver": lambda: start_webserver(force=True),
+        "start_webserver": start_webserver,
         "stop_webserver": stop_webserver,
         "webserver_status": webserver_status,
-        "webserver_autofix": webserver_autofix,
         "help": show_help,
     }
 

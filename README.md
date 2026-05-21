@@ -12,8 +12,8 @@
 [![GitHub Stars](https://img.shields.io/github/stars/sansan0/TrendRadar?style=flat-square&logo=github&color=yellow)](https://github.com/sansan0/TrendRadar/stargazers)
 [![GitHub Forks](https://img.shields.io/github/forks/sansan0/TrendRadar?style=flat-square&logo=github&color=blue)](https://github.com/sansan0/TrendRadar/network/members)
 [![License](https://img.shields.io/badge/license-GPL--3.0-blue.svg?style=flat-square)](LICENSE)
-[![Version](https://img.shields.io/badge/version-v6.6.0-blue.svg)](https://github.com/sansan0/TrendRadar)
-[![MCP](https://img.shields.io/badge/MCP-v4.0.2-green.svg)](https://github.com/sansan0/TrendRadar)
+[![Version](https://img.shields.io/badge/version-v6.7.1-blue.svg)](https://github.com/sansan0/TrendRadar)
+[![MCP](https://img.shields.io/badge/MCP-v4.0.4-green.svg)](https://github.com/sansan0/TrendRadar)
 [![RSS](https://img.shields.io/badge/RSS-订阅源支持-orange.svg?style=flat-square&logo=rss&logoColor=white)](https://github.com/sansan0/TrendRadar)
 [![AI翻译](https://img.shields.io/badge/AI-多语言推送-purple.svg?style=flat-square)](https://github.com/sansan0/TrendRadar)
 
@@ -241,14 +241,12 @@
 - **提示**：建议查看【历史更新】，明确具体的【功能内容】
 
 
-### 2026/03/28 - v6.6.0
+### 2026/05/15 - v6.7.0
 
-- **HTML 报告浏览器增强**：在浏览器中打开报告可自动切换宽屏布局，关键词分组和独立展区均支持 Tab 快速切换，搜索框实时过滤新闻标题，邮件客户端仍显示原始窄屏布局，零回归
-- **暗色模式**：一键切换深色主题，自动记住偏好，适合夜间阅读
-- **一键复制新闻**：鼠标悬停新闻序号即可复制标题和链接，方便快速分享
-- **导出优化**：整页截图和分段截图合并为下拉式导出按钮，截图时自动还原干净布局
-- **快捷键系统**：支持 `W` 宽屏切换、`D` 暗色模式、`/` 搜索、`?` 查看快捷键提示
-- **阅读进度条**：页面顶部实时显示阅读进度
+- **Markdown 导出**：报告导出下拉菜单新增 Markdown 格式，一键生成带链接的结构化文本，方便 LLM 二次加工和跨平台分享（[#1121](https://github.com/sansan0/TrendRadar/issues/1121)）
+- **RSS guid 去重**：RSS 存储新增 guid 字段，去重优先级改为 guid > url，解决同一文章因 URL 变化导致重复入库的问题
+- **空标题防护**：解析器、渲染层、翻译回填全链路增加空标题兜底逻辑，确保无标题条目也能正常显示
+- **翻译质量增强**：翻译提示词要求保留编号顺序，空翻译结果不再覆盖原始标题
 
 ### 2026/02/09 - mcp-v4.0.0
 
@@ -261,6 +259,15 @@
 
 <details>
 <summary>👉 点击展开：<strong>历史更新</strong></summary>
+
+### 2026/03/28 - v6.6.0
+
+- **HTML 报告浏览器增强**：在浏览器中打开报告可自动切换宽屏布局，关键词分组和独立展区均支持 Tab 快速切换，搜索框实时过滤新闻标题，邮件客户端仍显示原始窄屏布局，零回归
+- **暗色模式**：一键切换深色主题，自动记住偏好，适合夜间阅读
+- **一键复制新闻**：鼠标悬停新闻序号即可复制标题和链接，方便快速分享
+- **导出优化**：整页截图和分段截图合并为下拉式导出按钮，截图时自动还原干净布局
+- **快捷键系统**：支持 `W` 宽屏切换、`D` 暗色模式、`/` 搜索、`?` 查看快捷键提示
+- **阅读进度条**：页面顶部实时显示阅读进度
 
 ### 2026/03/12 - v6.5.0
 
@@ -2726,10 +2733,7 @@ TrendRadar 提供两个独立的 Docker 镜像，可根据需求选择部署：
 
    | 环境变量 | 对应配置 | 示例值 | 说明 |
    |---------|---------|-------|------|
-   | `ENABLE_WEBSERVER` | - | `true` / `false` | 是否自动启动 Web 服务器 |
    | `WEBSERVER_PORT` | - | `8080` | Web 服务器端口 |
-   | `WEBSERVER_WATCHDOG` | - | `true` / `false` | 是否开启"网页服务自动恢复"（服务异常时自动重开） |
-   | `WEBSERVER_WATCHDOG_INTERVAL` | - | `60` | 自动恢复检查间隔（秒） |
    | `FEISHU_WEBHOOK_URL` | `notification.channels.feishu.webhook_url` | `https://...` | 飞书 Webhook（多账号用 `;` 分隔） |
    | `AI_ANALYSIS_ENABLED` | `ai_analysis.enabled` | `true` / `false` | 是否启用 AI 分析（v5.0.0 新增） |
    | `AI_API_KEY` | `ai.api_key` | `sk-xxx...` | AI API Key（ai_analysis 和 ai_translation 共享） |
@@ -2890,13 +2894,11 @@ docker rm trendradar
 ```
 
 > 💡 **Web 服务器说明**：
-> - 启动后可通过浏览器访问 `http://localhost:8080` 查看最新报告
+> - cron 模式下自动启动，通过浏览器访问 `http://localhost:8080` 查看最新报告
 > - 通过目录导航访问历史报告（如：`http://localhost:8080/2025-xx-xx/`）
 > - 端口可在 `.env` 文件中配置 `WEBSERVER_PORT` 参数
-> - 自动启动：在 `.env` 中设置 `ENABLE_WEBSERVER=true`
-> - 自动恢复：`WEBSERVER_WATCHDOG=true`（默认开启），每隔 `WEBSERVER_WATCHDOG_INTERVAL` 秒检查一次，异常会自动重开网页服务
-> - `stop_webserver` 的意思是"你主动手动关闭网页服务"（命令：`docker exec -it trendradar python manage.py stop_webserver`）
-> - "自动拉起"就是"系统自动把网页服务重新打开"；若你手动关闭后想恢复，请执行 `docker exec -it trendradar python manage.py start_webserver`
+> - 手动停止：`docker exec -it trendradar python manage.py stop_webserver`
+> - 手动启动：`docker exec -it trendradar python manage.py start_webserver`
 > - 安全提示：仅提供静态文件访问，限制在 output 目录，只绑定本地访问
 
 #### 数据持久化

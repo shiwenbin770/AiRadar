@@ -157,6 +157,7 @@ class RSSFetcher:
                     feed_id=feed.id,
                     feed_name=feed.name,
                     url=parsed.url,
+                    guid=parsed.guid or "",
                     published_at=parsed.published_at or "",
                     summary=parsed.summary or "",
                     author=parsed.author or "",

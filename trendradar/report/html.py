@@ -86,7 +86,7 @@ def render_html_content(
                 padding: 32px 24px;
                 text-align: center;
                 position: relative;
-                overflow: hidden;
+                overflow: visible;
             }
 
             .header-watermark {
@@ -1254,6 +1254,7 @@ def render_html_content(
                         <div class="save-dropdown-menu">
                             <button class="save-dropdown-item" onclick="saveAsImage()"><svg class="dropdown-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><circle cx="8" cy="7.5" r="2.5"/><path d="M12 4h.01"/></svg>整页截图</button>
                             <button class="save-dropdown-item" onclick="saveAsMultipleImages()"><svg class="dropdown-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="4" width="10" height="10" rx="1.5"/><path d="M5 4V2.5A1.5 1.5 0 016.5 1h7A1.5 1.5 0 0115 2.5v7a1.5 1.5 0 01-1.5 1.5H12"/></svg>分段截图</button>
+                            <button class="save-dropdown-item" onclick="saveAsMarkdown()"><svg class="dropdown-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2.5 2h11A1.5 1.5 0 0115 3.5v9a1.5 1.5 0 01-1.5 1.5h-11A1.5 1.5 0 011 12.5v-9A1.5 1.5 0 012.5 2z"/><path d="M4 11V5l2.5 3L9 5v6"/><path d="M11.5 8v3m0 0l-1.5-2m1.5 2l1.5-2"/></svg>Markdown</button>
                         </div>
                     </div>
                 </div>
@@ -2520,6 +2521,163 @@ def render_html_content(
                         button.disabled = false;
                     }, 2000);
                 }
+            }
+
+            function saveAsMarkdown() {
+                var lines = [];
+                var now = new Date();
+                var dateStr = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
+                var timeStr = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+
+                // 标题
+                var headerTitle = document.querySelector('.header-title');
+                lines.push('# ' + (headerTitle ? headerTitle.textContent.trim() : 'TrendRadar'));
+                lines.push('');
+
+                // 报告元信息
+                var infoItems = document.querySelectorAll('.header-info .info-item');
+                if (infoItems.length) {
+                    infoItems.forEach(function(item) {
+                        var label = item.querySelector('.info-label');
+                        var value = item.querySelector('.info-value');
+                        if (label && value) {
+                            lines.push('- **' + label.textContent.trim() + '**: ' + value.textContent.trim());
+                        }
+                    });
+                    lines.push('');
+                }
+
+                // 提取 news-item 通用函数
+                function extractItem(item, idx) {
+                    var titleEl = item.querySelector('.news-title a');
+                    var titleText = '';
+                    var url = '';
+                    if (titleEl) {
+                        titleText = titleEl.textContent.trim();
+                        url = titleEl.href || '';
+                    } else {
+                        var titleDiv = item.querySelector('.news-title') || item.querySelector('.new-item-title');
+                        if (titleDiv) titleText = titleDiv.textContent.trim();
+                    }
+                    if (!titleText) return '';
+
+                    var meta = [];
+                    var rank = item.querySelector('.rank-num, .new-item-rank');
+                    if (rank && rank.textContent.trim() && rank.textContent.trim() !== '?') meta.push('#' + rank.textContent.trim());
+                    var source = item.querySelector('.source-name');
+                    if (source) meta.push(source.textContent.trim());
+                    var keyword = item.querySelector('.keyword-tag');
+                    if (keyword) meta.push(keyword.textContent.trim());
+                    var time = item.querySelector('.time-info');
+                    if (time) meta.push(time.textContent.trim());
+                    var count = item.querySelector('.count-info');
+                    if (count) meta.push(count.textContent.trim());
+
+                    var line = idx + '. ';
+                    if (url) {
+                        line += '[' + titleText.replace(/[[\]]/g, '') + '](' + url + ')';
+                    } else {
+                        line += titleText;
+                    }
+                    if (meta.length) line += '  `' + meta.join(' | ') + '`';
+                    return line;
+                }
+
+                // 热点关键词区
+                var wordGroups = document.querySelectorAll('.hotlist-section > .word-group');
+                if (wordGroups.length) {
+                    lines.push('## 热点新闻');
+                    lines.push('');
+                    wordGroups.forEach(function(group) {
+                        var wordName = group.querySelector('.word-name');
+                        var wordCount = group.querySelector('.word-count');
+                        if (wordName) {
+                            lines.push('### ' + wordName.textContent.trim() + (wordCount ? ' (' + wordCount.textContent.trim() + ')' : ''));
+                            lines.push('');
+                        }
+                        var items = group.querySelectorAll('.news-item');
+                        items.forEach(function(item, i) {
+                            var line = extractItem(item, i + 1);
+                            if (line) lines.push(line);
+                        });
+                        lines.push('');
+                    });
+                }
+
+                // 新增热点区
+                var newSection = document.querySelector('.new-section');
+                if (newSection) {
+                    var newTitle = newSection.querySelector('.new-section-title');
+                    lines.push('## ' + (newTitle ? newTitle.textContent.trim() : '本次新增热点'));
+                    lines.push('');
+                    var sourceGroups = newSection.querySelectorAll('.new-source-group');
+                    sourceGroups.forEach(function(sg) {
+                        var srcTitle = sg.querySelector('.new-source-title');
+                        if (srcTitle) {
+                            lines.push('### ' + srcTitle.textContent.trim());
+                            lines.push('');
+                        }
+                        var items = sg.querySelectorAll('.new-item');
+                        items.forEach(function(item, i) {
+                            var line = extractItem(item, i + 1);
+                            if (line) lines.push(line);
+                        });
+                        lines.push('');
+                    });
+                }
+
+                // 独立展示区（热榜平台 + RSS）
+                var standaloneSection = document.querySelector('.standalone-section');
+                if (standaloneSection) {
+                    var standaloneTitle = standaloneSection.querySelector('.standalone-section-title');
+                    lines.push('## ' + (standaloneTitle ? standaloneTitle.textContent.trim() : '独立展示区'));
+                    lines.push('');
+                    var groups = standaloneSection.querySelectorAll('.standalone-group');
+                    groups.forEach(function(group) {
+                        var name = group.querySelector('.standalone-name');
+                        var cnt = group.querySelector('.standalone-count');
+                        if (name) {
+                            lines.push('### ' + name.textContent.trim() + (cnt ? ' (' + cnt.textContent.trim() + ')' : ''));
+                            lines.push('');
+                        }
+                        var items = group.querySelectorAll('.news-item');
+                        items.forEach(function(item, i) {
+                            var line = extractItem(item, i + 1);
+                            if (line) lines.push(line);
+                        });
+                        lines.push('');
+                    });
+                }
+
+                // 错误区
+                var errorSection = document.querySelector('.error-section');
+                if (errorSection) {
+                    var errorItems = errorSection.querySelectorAll('.error-item');
+                    if (errorItems.length) {
+                        lines.push('## 抓取异常');
+                        lines.push('');
+                        errorItems.forEach(function(item) {
+                            lines.push('- ' + item.textContent.trim());
+                        });
+                        lines.push('');
+                    }
+                }
+
+                // 页脚
+                lines.push('---');
+                lines.push('*Generated by TrendRadar*');
+
+                // 下载
+                var md = lines.join('\\n');
+                var blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
+                var link = document.createElement('a');
+                var filename = 'TrendRadar_' + dateStr + '_' + timeStr.replace(':', '') + '.md';
+                link.download = filename;
+                link.href = URL.createObjectURL(blob);
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(link.href);
             }
 
             document.addEventListener('DOMContentLoaded', function() {

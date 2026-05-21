@@ -118,11 +118,55 @@ const STORAGE_KEY_CONFIG_TIME = 'trendradar_config_time';
 const STORAGE_KEY_FREQUENCY_TIME = 'trendradar_frequency_time';
 const STORAGE_KEY_TIMELINE_TIME = 'trendradar_timeline_time';
 
-// 官网配置文件 URL
-const REMOTE_CONFIG_URL = 'https://raw.githubusercontent.com/sansan0/TrendRadar/refs/heads/master/config/config.yaml';
-const REMOTE_FREQUENCY_URL = 'https://raw.githubusercontent.com/sansan0/TrendRadar/refs/heads/master/config/frequency_words.txt';
-const REMOTE_TIMELINE_URL = 'https://raw.githubusercontent.com/sansan0/TrendRadar/refs/heads/master/config/timeline.yaml';
-const REMOTE_VERSION_URL = 'https://raw.githubusercontent.com/sansan0/TrendRadar/refs/heads/master/version_configs';
+// 官网配置文件 URL（GitHub 主源）
+const GITHUB_RAW_BASE = 'https://raw.githubusercontent.com/sansan0/TrendRadar/refs/heads/master/';
+const REMOTE_CONFIG_URL = GITHUB_RAW_BASE + 'config/config.yaml';
+const REMOTE_FREQUENCY_URL = GITHUB_RAW_BASE + 'config/frequency_words.txt';
+const REMOTE_TIMELINE_URL = GITHUB_RAW_BASE + 'config/timeline.yaml';
+const REMOTE_VERSION_URL = GITHUB_RAW_BASE + 'version_configs';
+
+// 所有源（GitHub 主源 + CDN 备用源），按优先级排列
+const ALL_SOURCES = [
+    GITHUB_RAW_BASE,
+    'https://fastly.jsdelivr.net/gh/sansan0/TrendRadar@master/',
+    'https://cdn.jsdelivr.net/gh/sansan0/TrendRadar@master/',
+    'https://gcore.jsdelivr.net/gh/sansan0/TrendRadar@master/',
+];
+let lastOkIndex = 0;
+
+async function fetchWithTimeout(url, timeout = 5000) {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeout);
+    try {
+        const resp = await fetch(url, { signal: controller.signal });
+        clearTimeout(id);
+        return resp;
+    } catch (e) {
+        clearTimeout(id);
+        throw e;
+    }
+}
+
+async function fetchWithFallback(url, timeout = 5000) {
+    const path = url.startsWith(GITHUB_RAW_BASE) ? url.slice(GITHUB_RAW_BASE.length) : null;
+    if (!path) return fetch(url);
+
+    const n = ALL_SOURCES.length;
+    for (let offset = 0; offset < n; offset++) {
+        const idx = (lastOkIndex + offset) % n;
+        try {
+            const resp = await fetchWithTimeout(ALL_SOURCES[idx] + path, timeout);
+            if (resp.ok) {
+                if (idx !== lastOkIndex) {
+                    console.log(`[CDN] 已切换到: ${ALL_SOURCES[idx].split('//')[1].split('/')[0]}`);
+                }
+                lastOkIndex = idx;
+                return resp;
+            }
+        } catch {}
+    }
+    throw new Error('所有源均不可用，请检查网络连接');
+}
 
 let currentYaml = "";
 let currentFrequency = "";
@@ -569,13 +613,13 @@ window.confirmLoadConfig = async function() {
     }
 
     closeLoadConfigModal();
-    showToast('正在从 GitHub 加载...', 'info');
+    showToast('正在加载最新配置...', 'info');
 
     try {
         const promises = [];
-        if (loadConfig) promises.push(fetch(REMOTE_CONFIG_URL).then(r => ({ type: 'config', res: r })));
-        if (loadFrequency) promises.push(fetch(REMOTE_FREQUENCY_URL).then(r => ({ type: 'frequency', res: r })));
-        if (loadTimeline) promises.push(fetch(REMOTE_TIMELINE_URL).then(r => ({ type: 'timeline', res: r })));
+        if (loadConfig) promises.push(fetchWithFallback(REMOTE_CONFIG_URL).then(r => ({ type: 'config', res: r })));
+        if (loadFrequency) promises.push(fetchWithFallback(REMOTE_FREQUENCY_URL).then(r => ({ type: 'frequency', res: r })));
+        if (loadTimeline) promises.push(fetchWithFallback(REMOTE_TIMELINE_URL).then(r => ({ type: 'timeline', res: r })));
 
         const results = await Promise.all(promises);
 
@@ -3245,7 +3289,7 @@ window.checkVersion = async function() {
     btn.disabled = true;
 
     try {
-        const versionRes = await fetch(REMOTE_VERSION_URL);
+        const versionRes = await fetchWithFallback(REMOTE_VERSION_URL);
         if (!versionRes.ok) {
             throw new Error(`版本信息获取失败: ${versionRes.status}`);
         }
@@ -3595,11 +3639,11 @@ window.updateToLatest = async function() {
         return;
     }
 
-    showToast('正在从 GitHub 加载最新版本...', 'info');
+    showToast('正在加载最新版本...', 'info');
 
     try {
         const url = currentTab === 'config' ? REMOTE_CONFIG_URL : REMOTE_FREQUENCY_URL;
-        const res = await fetch(url);
+        const res = await fetchWithFallback(url);
 
         if (!res.ok) {
             throw new Error(`加载失败: ${res.status}`);
@@ -4674,7 +4718,8 @@ function findChildKey(lines, start, end, parentIndent, key) {
         const indent = line.search(/\S/);
         if (indent <= parentIndent) break;
         const m = line.match(/^\s*(\S+):\s*/);
-        if (m && m[1] === key && indent === parentIndent + 2) {
+        const rawKey = m ? m[1].replace(/^["']|["']$/g, '') : null;
+        if (m && rawKey === key && indent === parentIndent + 2) {
             return i;
         }
     }

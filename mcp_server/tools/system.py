@@ -88,7 +88,7 @@ class SystemManagementTools:
                 "热榜平台已禁用",
                 suggestion="请检查 config/config.yaml 中的 platforms.enabled 配置"
             )
-        all_platforms = platforms_config.get("sources", [])
+        all_platforms = [p for p in platforms_config.get("sources", []) if p.get("enabled", True)]
         if not all_platforms:
             raise CrawlTaskError(
                 "配置文件中没有平台配置",
@@ -413,13 +413,21 @@ class SystemManagementTools:
             proxies: Optional[Dict],
             headers: Dict
         ) -> Dict:
-            """检查单个组件的版本"""
+            """检查单个组件的版本（支持 CDN 多源回退）"""
             try:
-                response = requests.get(
-                    remote_url, proxies=proxies, headers=headers, timeout=10
-                )
-                response.raise_for_status()
-                remote_version = response.text.strip()
+                from trendradar.core.cdn import fetch_with_fallback
+                proxy_url = None
+                if proxies:
+                    proxy_url = proxies.get("https") or proxies.get("http")
+                remote_version = fetch_with_fallback(remote_url, proxy_url)
+
+                if not remote_version:
+                    return {
+                        "success": False,
+                        "name": name,
+                        "current_version": local_version,
+                        "error": "所有版本检查源均不可用"
+                    }
 
                 local_tuple = parse_version(local_version)
                 remote_tuple = parse_version(remote_version)
@@ -441,20 +449,6 @@ class SystemManagementTools:
                     "current_parsed": list(local_tuple),
                     "remote_parsed": list(remote_tuple),
                     "message": message
-                }
-            except requests.exceptions.Timeout:
-                return {
-                    "success": False,
-                    "name": name,
-                    "current_version": local_version,
-                    "error": "获取远程版本超时"
-                }
-            except requests.exceptions.RequestException as e:
-                return {
-                    "success": False,
-                    "name": name,
-                    "current_version": local_version,
-                    "error": f"网络请求失败: {str(e)}"
                 }
             except Exception as e:
                 return {

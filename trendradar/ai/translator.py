@@ -187,11 +187,16 @@ class AITranslator:
             translated_texts, raw_parsed_count = self._parse_batch_response(response, len(non_empty_texts))
             batch_result.parsed_count = raw_parsed_count
 
-            # 填充结果
+            # 填充结果（跳过空翻译，避免用空字符串覆盖原始标题）
             for idx, translated in zip(non_empty_indices, translated_texts):
-                batch_result.results[idx].translated_text = translated
-                batch_result.results[idx].success = True
-                batch_result.success_count += 1
+                if translated and translated.strip():
+                    batch_result.results[idx].translated_text = translated
+                    batch_result.results[idx].success = True
+                    batch_result.success_count += 1
+                else:
+                    batch_result.results[idx].translated_text = batch_result.results[idx].original_text
+                    batch_result.results[idx].success = True
+                    batch_result.success_count += 1
 
         except Exception as e:
             error_msg = f"批量翻译失败: {type(e).__name__}: {str(e)[:100]}"

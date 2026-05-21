@@ -193,10 +193,12 @@ class NotificationDispatcher:
             if unchanged_count > 0:
                 print(f"[翻译][DEBUG] （另有 {unchanged_count} 条未变化，已省略）")
 
-        # 回填翻译结果
+        # 回填翻译结果（仅在翻译文本非空时替换，防止空翻译覆盖原始标题）
         for i, (loc_type, idx1, idx2) in enumerate(title_locations):
             if i < len(result.results) and result.results[i].success:
                 translated = result.results[i].translated_text
+                if not translated or not translated.strip():
+                    continue
                 if loc_type == "stats":
                     report_data["stats"][idx1]["titles"][idx2]["title"] = translated
                 elif loc_type == "new_titles":

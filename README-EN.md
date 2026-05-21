@@ -11,8 +11,8 @@ Deploy in <strong>30 seconds</strong> — Say goodbye to endless scrolling, only
 [![GitHub Stars](https://img.shields.io/github/stars/sansan0/TrendRadar?style=flat-square&logo=github&color=yellow)](https://github.com/sansan0/TrendRadar/stargazers)
 [![GitHub Forks](https://img.shields.io/github/forks/sansan0/TrendRadar?style=flat-square&logo=github&color=blue)](https://github.com/sansan0/TrendRadar/network/members)
 [![License](https://img.shields.io/badge/license-GPL--3.0-blue.svg?style=flat-square)](LICENSE)
-[![Version](https://img.shields.io/badge/version-v6.6.0-blue.svg)](https://github.com/sansan0/TrendRadar)
-[![MCP](https://img.shields.io/badge/MCP-v4.0.2-green.svg)](https://github.com/sansan0/TrendRadar)
+[![Version](https://img.shields.io/badge/version-v6.7.1-blue.svg)](https://github.com/sansan0/TrendRadar)
+[![MCP](https://img.shields.io/badge/MCP-v4.0.4-green.svg)](https://github.com/sansan0/TrendRadar)
 [![RSS](https://img.shields.io/badge/RSS-Feed_Support-orange.svg?style=flat-square&logo=rss&logoColor=white)](https://github.com/sansan0/TrendRadar)
 [![AI Translation](https://img.shields.io/badge/AI-Multi--Language-purple.svg?style=flat-square)](https://github.com/sansan0/TrendRadar)
 
@@ -193,14 +193,12 @@ This contributes to the sustainable maintenance of the project and the growth of
 - **Tip**: Check [Changelog] to understand specific [Features]
 
 
-### 2026/03/28 - v6.6.0
+### 2026/05/15 - v6.7.0
 
-- **HTML Report Browser Enhancement**: Open the HTML report in a browser to unlock widescreen layout, Tab navigation for keyword groups and standalone sections, real-time title search, and more — email clients still show the original narrow layout with zero regression
-- **Dark Mode**: One-click toggle for dark theme with automatic preference persistence, ideal for nighttime reading
-- **One-Click Copy**: Hover over a news number to copy the title and link instantly for quick sharing
-- **Export Optimization**: Full-page and segmented screenshots merged into a dropdown export button; screenshots auto-revert to clean layout
-- **Keyboard Shortcuts**: `W` widescreen toggle, `D` dark mode, `/` search, `?` view all shortcuts
-- **Reading Progress Bar**: Real-time reading progress displayed at the top of the page
+- **Markdown Export**: New Markdown option in the report export dropdown — generate structured text with clickable links, perfect for LLM processing and cross-platform sharing ([#1121](https://github.com/sansan0/TrendRadar/issues/1121))
+- **RSS GUID Deduplication**: RSS storage now supports GUID field with priority order guid > url, preventing duplicate entries caused by URL changes for the same article
+- **Empty Title Protection**: Full-chain fallback logic across parser, renderer, and translation backfill ensures items without titles still display properly
+- **Translation Quality Enhancement**: Translation prompt now enforces numbered-item ordering preservation; empty translation results no longer overwrite original titles
 
 ### 2026/02/09 - mcp-v4.0.0
 
@@ -213,6 +211,15 @@ This contributes to the sustainable maintenance of the project and the growth of
 
 <details>
 <summary>👉 Click to expand: <strong>Historical Updates</strong></summary>
+
+### 2026/03/28 - v6.6.0
+
+- **HTML Report Browser Enhancement**: Open the HTML report in a browser to unlock widescreen layout, Tab navigation for keyword groups and standalone sections, real-time title search, and more — email clients still show the original narrow layout with zero regression
+- **Dark Mode**: One-click toggle for dark theme with automatic preference persistence, ideal for nighttime reading
+- **One-Click Copy**: Hover over a news number to copy the title and link instantly for quick sharing
+- **Export Optimization**: Full-page and segmented screenshots merged into a dropdown export button; screenshots auto-revert to clean layout
+- **Keyboard Shortcuts**: `W` widescreen toggle, `D` dark mode, `/` search, `?` view all shortcuts
+- **Reading Progress Bar**: Real-time reading progress displayed at the top of the page
 
 ### 2026/03/12 - v6.5.0
 
@@ -2675,10 +2682,7 @@ current directory/
 
    | Environment Variable | Corresponding Config | Example Value | Description |
    |---------------------|---------------------|---------------|-------------|
-   | `ENABLE_WEBSERVER` | - | `true` / `false` | Auto-start web server |
    | `WEBSERVER_PORT` | - | `8080` | Web server port |
-   | `WEBSERVER_WATCHDOG` | - | `true` / `false` | Turn on "auto-recover web page service" (restarts it if it crashes) |
-   | `WEBSERVER_WATCHDOG_INTERVAL` | - | `60` | How often to check and auto-recover (seconds) |
    | `FEISHU_WEBHOOK_URL` | `notification.channels.feishu.webhook_url` | `https://...` | Feishu Webhook (multi-account use `;` separator) |
    | `AI_ANALYSIS_ENABLED` | `ai_analysis.enabled` | `true` / `false` | Enable AI analysis (v5.0.0 new) |
    | `AI_API_KEY` | `ai.api_key` | `sk-xxx...` | AI API Key (shared by ai_analysis and ai_translation) |
@@ -2839,13 +2843,11 @@ docker rm trendradar
 ```
 
 > 💡 **Web Server Notes**:
-> - After starting, access latest report at `http://localhost:8080`
+> - Auto-starts in cron mode, access latest report at `http://localhost:8080`
 > - Access historical reports via directory navigation (e.g., `http://localhost:8080/2025-xx-xx/`)
 > - Port can be configured in `.env` file with `WEBSERVER_PORT` parameter
-> - Auto-start: Set `ENABLE_WEBSERVER=true` in `.env`
-> - Auto-recover: `WEBSERVER_WATCHDOG=true` (default). It checks every `WEBSERVER_WATCHDOG_INTERVAL` seconds and restarts the web page service if needed
-> - `stop_webserver` means you manually turn off the web page service (command: `docker exec -it trendradar python manage.py stop_webserver`)
-> - "Auto restart" means the system turns that web page service back on automatically. If you stopped it manually and want it back, run `docker exec -it trendradar python manage.py start_webserver`
+> - Stop manually: `docker exec -it trendradar python manage.py stop_webserver`
+> - Start manually: `docker exec -it trendradar python manage.py start_webserver`
 > - Security: Static files only, limited to output directory, localhost binding only
 
 #### Data Persistence

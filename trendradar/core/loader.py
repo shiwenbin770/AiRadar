@@ -576,7 +576,7 @@ def load_config(config_path: Optional[str] = None) -> Dict[str, Any]:
 
     # 平台配置
     platforms_config = config_data.get("platforms", {})
-    config["PLATFORMS"] = platforms_config.get("sources", [])
+    config["PLATFORMS"] = [p for p in platforms_config.get("sources", []) if p.get("enabled", True)]
 
     # RSS 配置
     config["RSS"] = _load_rss_config(config_data)
